@@ -1,1 +1,1 @@
-add_library(argparser ArgParser.cpp ConcreteArgument.cpp)
+add_library(argparser ArgParser.cpp SpecificArgument.cpp)

@@ -4,16 +4,30 @@
 #include <string_view>
 #include <cstddef>
 #include <vector>
+#include <expected>
 
 namespace ArgumentParser {
 
 const char kNoShortName = 0;
 
-enum class ArgumentParsingStatus {
+enum class ArgumentStatus {
     kSuccess,
     kNoArgument,
     kInvalidArgument,
-    kInsufficientArguments
+    kInsufficient
+};
+
+enum class ArgumentParsingErrorType {
+    kInsufficent,
+    kInvalidArgument,
+    kUnknownArgument,
+    kSuccess
+};
+
+struct ArgumentParsingError {
+    std::string argument_string{};
+    ArgumentParsingErrorType status = ArgumentParsingErrorType::kSuccess;
+    std::string argument_name{};
 };
 
 struct ArgumentInfo {
@@ -36,8 +50,13 @@ public:
 
     virtual const ArgumentInfo& GetInfo() const = 0;
     virtual const std::string& GetType() const = 0;
-    virtual ArgumentParsingStatus GetValueStatus() const = 0;
-    virtual std::vector<size_t> ParseArgument(const std::vector<std::string>& argv, size_t position) = 0;
+    virtual ArgumentStatus GetValueStatus() const = 0;
+    virtual size_t GetValuesSet() const = 0;
+
+    virtual std::expected<size_t, ArgumentParsingError> ParseArgument(const std::vector<std::string>& argv,
+                                                                      size_t position) = 0;
+
+    virtual void ClearValuesStorage() = 0;
 };
 
 } // namespace ArgumentParser

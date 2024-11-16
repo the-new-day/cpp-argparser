@@ -19,23 +19,29 @@ int main(int argc, char** argv) {
     parser.AddFlag("mult", "multiply args").StoreValue(opt.mult);
     parser.AddHelp('h', "help", "Program accumulate arguments");
 
-    if(!parser.Parse(argc, argv)) {
+    if (!parser.Parse(argc, argv)) {
+        std::cout << parser.HasError();
+
         std::cout << "Wrong argument" << std::endl;
         std::cout << parser.HelpDescription() << std::endl;
         return 1;
     }
 
-    if(parser.Help()) {
+    if (parser.Help()) {
         std::cout << parser.HelpDescription() << std::endl;
         return 0;
     }
 
-    if(opt.sum) {
-        std::cout << "Result: " << std::accumulate(values.begin(), values.end(), 0) << std::endl;
-    } else if(opt.mult) {
-        std::cout << "Result: " << std::accumulate(values.begin(), values.end(), 1, std::multiplies<int>()) << std::endl;
-    } else {
-        std::cout << "No one options had chosen" << std::endl;
+    if (opt.sum) {
+        std::cout << "Sum: " << std::accumulate(values.begin(), values.end(), 0) << std::endl;
+    }
+    
+    if (opt.mult) {
+        std::cout << "Product: " << std::accumulate(values.begin(), values.end(), 1, std::multiplies<int>()) << std::endl;
+    } 
+    
+    if (!opt.mult && !opt.sum) {
+        std::cout << "No options was chosen" << std::endl;
         std::cout << parser.HelpDescription();
         return 1;
     }
