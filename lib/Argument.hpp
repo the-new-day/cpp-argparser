@@ -21,6 +21,7 @@ enum class ArgumentParsingErrorType {
     kInsufficent,
     kInvalidArgument,
     kUnknownArgument,
+    kNoArgument,
     kSuccess
 };
 

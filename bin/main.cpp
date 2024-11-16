@@ -20,7 +20,7 @@ int main(int argc, char** argv) {
     parser.AddHelp('h', "help", "Program accumulate arguments");
 
     if (!parser.Parse(argc, argv)) {
-        std::cout << parser.HasError();
+        std::cout << (parser.GetError().argument_string) << std::endl;
 
         std::cout << "Wrong argument" << std::endl;
         std::cout << parser.HelpDescription() << std::endl;

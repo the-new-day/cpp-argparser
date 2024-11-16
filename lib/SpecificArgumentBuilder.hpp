@@ -19,7 +19,6 @@ public:
                             const std::string& description);
 
     const ArgumentInfo& GetInfo() const override;
-    ArgumentStatus GetValueStatus() const override;
 
     SpecificArgumentBuilder& Default(T default_value);
     SpecificArgumentBuilder& MultiValue(size_t min_values = 0);
@@ -31,7 +30,6 @@ public:
 
 private:
     ArgumentInfo info_;
-    ArgumentStatus value_status_;
     
     T default_value_{};
     T* store_value_to_ = nullptr;
@@ -42,9 +40,11 @@ private:
 
 template<typename T>
 Argument* SpecificArgumentBuilder<T>::Build() {
-    if (std::is_same_v<bool, T> && !info_.has_default) {
-        info_.has_default = true;
-        default_value_ = false;
+    if (std::is_same_v<bool, T>) {
+        if (!info_.has_default) {
+            info_.has_default = true;
+            default_value_ = false;
+        }
     }
 
     if (!info_.has_store_values) {
@@ -70,7 +70,6 @@ SpecificArgumentBuilder<T>::SpecificArgumentBuilder(char short_name,
     info_.short_name = short_name;
     info_.description = description;
     info_.type = typeid(T).name();
-    value_status_ = ArgumentStatus::kNoArgument;
 }
 
 template <typename T>
@@ -78,16 +77,10 @@ const ArgumentInfo &SpecificArgumentBuilder<T>::GetInfo() const {
     return info_;
 }
 
-template <typename T>
-ArgumentStatus SpecificArgumentBuilder<T>::GetValueStatus() const {
-    return value_status_;
-}
-
 template<typename T>
 SpecificArgumentBuilder<T>& SpecificArgumentBuilder<T>::Default(T default_value) {
     default_value_ = default_value;
     info_.has_default = true;
-    value_status_ = ArgumentStatus::kSuccess;
     return *this;
 }
 

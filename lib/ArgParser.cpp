@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <iostream>
+#include <numeric>
 
 namespace ArgumentParser {
 
@@ -65,9 +66,19 @@ bool ArgParser::Parse(const std::vector<std::string>& argv) {
 
     std::vector<size_t> unused_positions;
 
-    for (size_t position = 1; position < argv.size() && argv[position] != "--"; ++position) {
+    for (size_t position = 1; position < argv.size(); ++position) {
         std::string_view argument = argv[position];
         std::string_view argument_name;
+
+        if (argument == "--") {
+            unused_positions.reserve(argv.size() - position - 1);
+
+            for (size_t i = position + 1; i < argv.size(); ++i) {
+                unused_positions.push_back(i);
+            }
+
+            break;
+        }
 
         if (argument[0] != '-' || argument.size() == 1) {
             unused_positions.push_back(position);
@@ -177,6 +188,8 @@ bool ArgParser::HandleErrors() {
         ArgumentStatus status = argument->GetValueStatus();
         if (status == ArgumentStatus::kSuccess) {
             continue;
+        } else if (status == ArgumentStatus::kNoArgument) {
+            error_.status = ArgumentParsingErrorType::kNoArgument;
         }
         
         error_.argument_name = argument->GetInfo().long_name;

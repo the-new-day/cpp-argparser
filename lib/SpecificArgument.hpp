@@ -113,7 +113,11 @@ SpecificArgument<T>::SpecificArgument(const ArgumentInfo& info,
       default_value_(default_value),
       store_value_to_(store_value_to),
       store_values_to_(store_values_to),
-      value_status_(ArgumentStatus::kNoArgument) {}
+      value_status_(ArgumentStatus::kNoArgument) {
+    if (info.has_default) {
+        value_status_ = ArgumentStatus::kSuccess;
+    }
+}
 
 template<typename T>
 T SpecificArgument<T>::GetValue() const {
