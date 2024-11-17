@@ -4,8 +4,9 @@
 
 #include <cstddef>
 #include <type_traits>
-#include <iostream>
 #include <expected>
+
+#include <iostream>
 
 namespace ArgumentParser {
 
@@ -53,21 +54,22 @@ std::expected<size_t, ArgumentParsingError> SpecificArgument<T>::ParseArgument(
         value_status_ = ArgumentStatus::kSuccess;
     }
 
-    bool is_value_being_parsed = false;
-
-    if (info_.is_positional) {
-        is_value_being_parsed = true;
-    }
-
     size_t current_used_positions = 1;
     
     std::string_view value_string = argv[position];
 
-    if (!is_value_being_parsed && !info_.is_positional) {
+    bool is_short_with_value = false;
+
+    if (!info_.is_positional) {
         if (value_string.starts_with("--")) {
             value_string = value_string.substr(2);
         } else if (value_string[0] == '-') {
             value_string = value_string.substr(1);
+
+            if (value_string.length() > 1 && value_string[1] != '=') {
+                value_string = value_string.substr(1);
+                is_short_with_value = true;
+            }
         }
     }
 
@@ -77,7 +79,7 @@ std::expected<size_t, ArgumentParsingError> SpecificArgument<T>::ParseArgument(
         value_string = value_string.substr(equal_sign_index + 1);
     } else if (std::is_same_v<bool, T>) {
         value_string = "";
-    } else if (!is_value_being_parsed) {
+    } else if (!info_.is_positional && !is_short_with_value) {
         ++position;
         ++current_used_positions;
         value_string = argv[position];
@@ -97,7 +99,7 @@ std::expected<size_t, ArgumentParsingError> SpecificArgument<T>::ParseArgument(
     }
 
     if (value_status_ != ArgumentStatus::kInvalidArgument
-        && store_values_to_->size() < info_.minimum_values) {
+        && store_values_to_->size() < info_.minimum_values && !info_.has_default) {
         value_status_ = ArgumentStatus::kInsufficient;
     }
 
@@ -126,8 +128,12 @@ T SpecificArgument<T>::GetValue() const {
 
 template<typename T>
 T SpecificArgument<T>::GetValue(size_t index) const {
+    if (info_.is_multi_value && info_.has_default && index >= store_values_to_->size()) {
+        return default_value_;
+    }
+
     if (store_values_to_->size() == 0 && info_.has_default) {
-        store_values_to_->push_back(default_value_);
+        return default_value_;
     }
 
     return store_values_to_->at(index);

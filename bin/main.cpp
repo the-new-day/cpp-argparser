@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <numeric>
+#include <type_traits>
 
 struct Options {
     bool sum = false;
@@ -11,14 +12,14 @@ struct Options {
 
 int main(int argc, char** argv) {
     ArgumentParser::ArgParser parser("My Parser");
-    bool flag3 ;
-    parser.AddFlag('a', "flag1");
-    parser.AddFlag('b', "flag2").Default(true);
-    parser.AddFlag('c', "flag3").StoreValue(flag3);
+    double val;
+    parser.AddDoubleArgument('r', "ratio", "I have no idea what this may be").StoreValue(val);
+    parser.AddStringArgument('i', "input", "Input file").Default("somefile.tsv").MultiValue(2);
+    parser.AddIntArgument('i', "input", "Input file").Default(4).MultiValue(21111);
+    parser.AddIntArgument("boba", "Some positional fooly argument").Positional();
 
-    parser.Parse(argc, argv);
-
-    std::cout << parser.GetValue<bool>("flag2") << std::endl;
+    //parser.Parse({"app", "-r-4.2", "-itest.tsv"});
+    std::cout << parser.HelpDescription() << std::endl;
 
     // Options opt;
     // std::vector<int> values;

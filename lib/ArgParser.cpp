@@ -1,10 +1,20 @@
 #include "ArgParser.hpp"
 
 #include <algorithm>
-#include <iostream>
 #include <numeric>
 
+#include <iostream> // TODO: remove
+
 namespace ArgumentParser {
+    
+ArgParser::ArgParser(const std::string& program_name) : program_name_(program_name) {
+    help_description_types_ = {
+        {typeid(int32_t).name(), "int"},
+        {typeid(std::string).name(), "string"},
+        {typeid(bool).name(), ""},
+        {typeid(double).name(), "double"}
+    };
+}
 
 ArgParser::~ArgParser() {
     for (auto* argument : arguments_) {
@@ -16,7 +26,7 @@ ArgParser::~ArgParser() {
     }
 }
 
-void ArgParser::SetArguments() {
+void ArgParser::RefreshParser() {
     for (auto* argument : arguments_) {
         argument->ClearValuesStorage();
         delete argument;
@@ -27,6 +37,8 @@ void ArgParser::SetArguments() {
     for (auto* builder : argument_builders_) {
         arguments_.push_back(builder->Build());
     }
+
+    error_ = ArgumentParsingError{};
 }
 
 std::vector<std::string_view> ArgParser::GetLongNames(std::string_view argument) const {
@@ -51,18 +63,26 @@ std::vector<std::string_view> ArgParser::GetLongNames(std::string_view argument)
     } else {
         for (const char short_name : argument) {
             if (!short_names_to_long_.contains(short_name)) {
-                return {};
+                continue;
             }
 
             names.push_back(short_names_to_long_.at(short_name));
         }
     }
 
+    if (!is_long && names.size() < argument.length()) {
+        if (short_names_to_long_.contains(argument[0])) {
+            return {names[0]};
+        }
+
+        return {};
+    }
+
     return names;
 }
 
 bool ArgParser::Parse(const std::vector<std::string>& argv) {
-    SetArguments();
+    RefreshParser();
 
     std::vector<size_t> unused_positions;
 
@@ -94,7 +114,7 @@ bool ArgParser::Parse(const std::vector<std::string>& argv) {
 
         for (const std::string_view long_name : long_names) {
             if (!arguments_indeces_.contains(long_name)) {
-                error_ = {argv[position], ArgumentParsingErrorType::kUnknownArgument};
+                error_ = {argv[position], ArgumentParsingErrorType::kUnknownArgument, std::string(long_name)};
                 return false;
             }
 
@@ -105,7 +125,13 @@ bool ArgParser::Parse(const std::vector<std::string>& argv) {
 
             if (!current_used_positions.has_value()) {
                 error_ = current_used_positions.error();
+                error_.argument_name = long_name;
+                error_.argument_string = argv[position];
                 return false;
+            }
+
+            if (long_name == help_argument_name_) {
+                need_help_ = true;
             }
 
             position += current_used_positions.value() - 1;
@@ -113,6 +139,12 @@ bool ArgParser::Parse(const std::vector<std::string>& argv) {
     }
 
     ParsePositionalArguments(argv, unused_positions);
+
+    if (need_help_) {
+        HandleErrors();
+        return true;
+    }
+
     return HandleErrors();
 }
 
@@ -200,17 +232,109 @@ bool ArgParser::HandleErrors() {
 }
 
 void ArgParser::AddHelp(char short_name, const std::string& long_name, const std::string& description) {
+    AddFlag(short_name, long_name, description);
+    help_argument_name_ = long_name;
 }
 
 void ArgParser::AddHelp(const std::string& long_name, const std::string& description) {
+    AddHelp(kNoShortName, long_name, description);
 }
 
 bool ArgParser::Help() const {
-    return false;
+    return need_help_;
 }
 
 std::string ArgParser::HelpDescription() const {
-    return std::string();
+    std::string result = program_name_ + '\n';
+
+    size_t max_argument_names_length = 0;
+
+    for (const ArgumentBuilder* argument : argument_builders_) {
+        size_t length = GetArgumentNamesDescription(argument->GetInfo()).length();
+        if (length > max_argument_names_length) {
+            max_argument_names_length = length;
+        }
+    }
+
+    if (!help_argument_name_.empty()) {
+        result += arguments_.at(arguments_indeces_.at(help_argument_name_))->GetInfo().description;
+        result += '\n';
+    }
+
+    // TODO: print positional arguments before options
+    // something like "Usage: app [OPTIONS] <arg1> <arg2> <arg3>"
+
+    result += '\n';
+
+    for (const ArgumentBuilder* argument : argument_builders_) {
+        ArgumentInfo info = argument->GetInfo();
+        if (info.is_positional) {
+            continue;
+        }
+
+        result += GetArgumentDescription(info, max_argument_names_length);
+        result += '\n';
+    }
+
+    return result;
+}
+
+std::string ArgParser::GetArgumentDescription(const ArgumentInfo& info,
+                                              size_t max_argument_names_length) const {
+    std::string result = GetArgumentNamesDescription(info);
+
+    result.insert(result.end(), max_argument_names_length - result.length() + 2, ' ');
+    result += info.description;
+
+    std::string options = " [";
+
+    bool is_first_option = true;
+
+    // TODO: "repeated, ", "min values = " etc. - should be user-configurable
+
+    if (info.is_multi_value) {
+        options += "repeated, ";
+        options += "min values = " + std::to_string(info.minimum_values);
+        is_first_option = false;
+    }
+
+    if (info.has_default) {
+        if (!is_first_option) {
+            options += "; ";
+        }
+
+        options += "default = ";
+    }
+
+    options += ']';
+
+    if (options.length() > 3) {
+        result += options;
+    }
+
+    return result;
+}
+
+std::string ArgParser::GetArgumentNamesDescription(const ArgumentInfo& info) const {
+    std::string result;
+    if (info.short_name == kNoShortName) {
+        result.insert(0, 4, ' ');
+    } else {
+        result = "-";
+        result += info.short_name;
+        result += ", ";
+    }
+
+    result += "--";
+    result += info.long_name;
+
+    if (help_description_types_.contains(info.type)) {
+        result += "=<";
+        result += help_description_types_.at(info.type);
+        result += ">";
+    }
+
+    return result;
 }
 
 ArgumentParsingError ArgParser::GetError() const {

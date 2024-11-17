@@ -219,3 +219,84 @@ TEST(ArgParserTestSuite, HelpStringTest) {
     //     "-h, --help Display this help and exit\n"
     // );
 }
+
+
+TEST(ArgParserTestSuite, DoubleTest) {
+    ArgParser parser("My Parser");
+    double val;
+    parser.AddDoubleArgument('r', "ratio", "I have no idea what this may be").StoreValue(val);
+
+    ASSERT_TRUE(parser.Parse(SplitString("app --ratio -4.2")));
+    ASSERT_EQ(parser.GetDoubleValue("ratio"), -4.2);
+    ASSERT_EQ(val, -4.2);
+}
+
+
+TEST(ArgParserTestSuite, PositionalNegativeNumbersTest) {
+    ArgParser parser("My Parser");
+    std::vector<int> values;
+    parser.AddFlag('f', "flag", "Flag");
+    parser.AddIntArgument('n', "number", "Some Number");
+    parser.AddIntArgument("Param1").MultiValue(1).Positional().StoreValues(values);
+
+    ASSERT_FALSE(parser.Parse(SplitString("app -n 0 1 2 3 -4 5 -f")));
+    ASSERT_TRUE(parser.Parse(SplitString("app -n 0 1 2 3 -f -- -4 5")));
+    ASSERT_TRUE(parser.GetFlag("flag"));
+    ASSERT_EQ(parser.GetIntValue("number"), 0);
+    ASSERT_EQ(values[0], 1);
+    ASSERT_EQ(values[2], 3);
+    ASSERT_EQ(values[3], -4);
+    ASSERT_EQ(values[4], 5);
+    ASSERT_EQ(values.size(), 5);
+}
+
+TEST(ArgParserTestSuite, FlagWithValueTest) {
+    ArgParser parser("My Parser");
+    parser.AddFlag('m', "monster", "Summon a monster");
+
+    ASSERT_TRUE(parser.Parse(SplitString("app --monster")));
+    ASSERT_FALSE(parser.Parse(SplitString("app --monster=YES")));
+}
+
+
+TEST(ArgParserTestSuite, InvalidHelpTest) {
+    ArgParser parser("My Parser");
+    parser.AddHelp('h', "help", "Some Description about program");
+
+    ASSERT_FALSE(parser.Parse(SplitString("app --help=helpmepls")));
+    ASSERT_FALSE(parser.Help());
+}
+
+
+TEST(ArgParserTestSuite, InvalidValueTest) {
+    ArgParser parser("My Parser");
+    double val;
+    parser.AddDoubleArgument('r', "ratio", "I have no idea what this may be").StoreValue(val);
+
+    ASSERT_FALSE(parser.Parse(SplitString("app --ratio=helpmepls")));
+}
+
+
+TEST(ArgParserTestSuite, ShortArgWithNoEqualSignTest) {
+    ArgParser parser("My Parser");
+    double val;
+    parser.AddDoubleArgument('r', "ratio", "I have no idea what this may be").StoreValue(val);
+    parser.AddStringArgument('i', "input", "Input file");
+
+    ASSERT_TRUE(parser.Parse(SplitString("app -r-4.2 -itest.tsv")));
+    ASSERT_EQ(parser.GetDoubleValue("ratio"), -4.2);
+    ASSERT_EQ(val, -4.2);
+    ASSERT_EQ(parser.GetStringValue("input"), "test.tsv");
+}
+
+
+TEST(ArgParserTestSuite, MultiValueWithDefaultTest) {
+    ArgParser parser("My Parser");
+    parser.AddDoubleArgument('r', "ratio", "I have no idea what this may be")
+          .Default(3.14)
+          .MultiValue(2);
+
+    ASSERT_TRUE(parser.Parse(SplitString("app --ratio -4.2")));
+    ASSERT_EQ(parser.GetDoubleValue("ratio", 0), -4.2);
+    ASSERT_EQ(parser.GetDoubleValue("ratio", 10), 3.14);
+}

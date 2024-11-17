@@ -7,7 +7,6 @@
 #include <vector>
 #include <map>
 #include <cstdint>
-#include <iostream>
 
 #define ARGPARSER_ADD_ARGUMENT(NewName, Type) \
 inline SpecificArgumentBuilder<Type>& NewName(char short_name, \
@@ -41,7 +40,7 @@ struct HelpArgument {
 
 class ArgParser {
 public:
-    ArgParser(const std::string& program_name) : program_name_(program_name) {}
+    ArgParser(const std::string& program_name);
     ~ArgParser();
 
     template<typename T>
@@ -103,7 +102,10 @@ private:
 
     ArgumentParsingError error_;
 
-    void SetArguments();
+    bool need_help_ = false;
+    std::string help_argument_name_;
+
+    void RefreshParser();
 
     std::vector<std::string_view> GetLongNames(std::string_view argument) const;
 
@@ -111,6 +113,11 @@ private:
                                   const std::vector<size_t>& positions);
 
     bool HandleErrors();
+
+    std::string GetArgumentDescription(const ArgumentInfo& info,
+                                       size_t max_argument_names_length) const;
+
+    std::string GetArgumentNamesDescription(const ArgumentInfo& info) const;
 };
 
 template<typename T>
