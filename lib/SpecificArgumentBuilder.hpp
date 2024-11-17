@@ -47,6 +47,10 @@ Argument* SpecificArgumentBuilder<T>::Build() {
         }
     }
 
+    if (info_.has_store_value && info_.has_default) {
+        *store_value_to_ = default_value_;
+    }
+
     if (!info_.has_store_values) {
         store_values_to_ = new std::vector<T>;
         temp_vectors_.push_back(store_values_to_);

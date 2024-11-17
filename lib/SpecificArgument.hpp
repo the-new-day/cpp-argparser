@@ -126,6 +126,10 @@ T SpecificArgument<T>::GetValue() const {
 
 template<typename T>
 T SpecificArgument<T>::GetValue(size_t index) const {
+    if (store_values_to_->size() == 0 && info_.has_default) {
+        store_values_to_->push_back(default_value_);
+    }
+
     return store_values_to_->at(index);
 }
 

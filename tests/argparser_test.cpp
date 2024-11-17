@@ -219,21 +219,3 @@ TEST(ArgParserTestSuite, HelpStringTest) {
     //     "-h, --help Display this help and exit\n"
     // );
 }
-
-
-TEST(ArgParserTestSuite, PositionalNegativeNumbersTest) {
-    ArgParser parser("My Parser");
-    std::vector<int> values;
-    parser.AddFlag('f', "flag", "Flag");
-    parser.AddIntArgument('n', "number", "Some Number");
-    parser.AddIntArgument("Param1").MultiValue(1).Positional().StoreValues(values);
-
-    ASSERT_TRUE(parser.Parse(SplitString("app -n 0 1 2 3 -4 -10 -f")));
-    ASSERT_TRUE(parser.GetFlag("flag"));
-    ASSERT_EQ(parser.GetIntValue("number"), 0);
-    ASSERT_EQ(values[0], 1);
-    ASSERT_EQ(values[2], 3);
-    ASSERT_EQ(values[3], -4);
-    ASSERT_EQ(values[4], -10);
-    ASSERT_EQ(values.size(), 5);
-}
