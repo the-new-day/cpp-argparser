@@ -8,7 +8,7 @@
 
 namespace ArgumentParser {
 
-const char kNoShortName = 0;
+const char kNoShortName = -1;
 
 enum class ArgumentStatus {
     kSuccess,
@@ -26,14 +26,14 @@ enum class ArgumentParsingErrorType {
 };
 
 struct ArgumentParsingError {
-    std::string argument_string{};
+    std::string_view argument_string{};
     ArgumentParsingErrorType status = ArgumentParsingErrorType::kSuccess;
-    std::string argument_name{};
+    std::string_view argument_name{};
 };
 
 class Argument {
 public:
-    virtual const std::string& GetType() const = 0;
+    virtual std::string_view GetType() const = 0;
     virtual ArgumentStatus GetValueStatus() const = 0;
     virtual size_t GetValuesSet() const = 0;
     virtual const std::string& GetDefaultValueString() const = 0;
@@ -48,7 +48,7 @@ public:
     virtual bool HasDefault() const = 0;
     virtual size_t GetMinimumValues() const = 0;
 
-    virtual std::expected<size_t, ArgumentParsingError> ParseArgument(const std::vector<std::string>& argv,
+    virtual std::expected<size_t, ArgumentParsingError> ParseArgument(const std::vector<std::string_view>& argv,
                                                                       size_t position) = 0;
 
     virtual void Clear() = 0;

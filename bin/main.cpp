@@ -11,7 +11,8 @@ struct Options {
 };
 
 int main(int argc, char** argv) {
-    ArgumentParser::ArgParser parser("Sandpile", "Abelian sandpile model implementation");
+    std::string name = "Sandpile";
+    ArgumentParser::ArgParser parser(name, "Abelian sandpile model implementation");
 
     parser.AddHelp('h', "help", "Display this help and exit");
     parser.AddStringArgument('i', "input", "File path for input file");
@@ -19,8 +20,10 @@ int main(int argc, char** argv) {
     parser.AddFlag('s', "flag1", "Read first number");
     parser.AddFlag('p', "flag2", "Read second number").Default(true);
     parser.AddIntArgument("number", "Some Number").Default(3);
+    parser.AddStringArgument("behavior").Positional().MultiValue();
 
     parser.SetTypeAlias<double>("float");
+
 
     std::cout << parser.Parse(argc, argv) << std::endl;
 

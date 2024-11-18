@@ -7,8 +7,6 @@
 #include <expected>
 #include <sstream>
 
-#include <iostream>
-
 namespace ArgumentParser {
 
 template<typename T>
@@ -21,15 +19,14 @@ public:
 
     ~SpecificArgument();
 
-    const std::string& GetType() const override;
+    std::string_view GetType() const override;
     ArgumentStatus GetValueStatus() const override;
     size_t GetValuesSet() const override;
 
-    std::expected<size_t, ArgumentParsingError> ParseArgument(const std::vector<std::string>& argv,
+    std::expected<size_t, ArgumentParsingError> ParseArgument(const std::vector<std::string_view>& argv,
                                                               size_t position) override;
 
-    T GetValue() const;
-    T GetValue(size_t index) const;
+    std::optional<T> GetValue(size_t index = 0) const;
 
     SpecificArgument& Default(T default_value);
     SpecificArgument& MultiValue(size_t min_values = 0);
@@ -54,7 +51,6 @@ protected:
     std::string long_name_;
     char short_name_ = kNoShortName;
     std::string description_;
-    std::string type_;
 
     ArgumentStatus value_status_ = ArgumentStatus::kNoArgument;
 
@@ -80,9 +76,26 @@ protected:
     ArgumentParsingErrorType ParseValue(std::string_view value_string);
 };
 
+template<typename T>
+SpecificArgument<T>::SpecificArgument(char short_name,
+                                      const std::string& long_name,
+                                      const std::string& description) 
+    : short_name_(short_name),
+      long_name_(long_name),
+      description_(description) {
+    if (std::is_same_v<bool, T>) {
+        default_value_string_ = "false";
+        default_value_ = false;
+        has_default_ = true;
+    }
+
+    store_values_to_ = new std::vector<T>;
+    was_temp_vector_created_ = true;
+}
+
 template <typename T>
 std::expected<size_t, ArgumentParsingError> SpecificArgument<T>::ParseArgument(
-    const std::vector<std::string>& argv,
+    const std::vector<std::string_view>& argv,
     size_t position) {
     if (store_values_to_->empty()) {
         value_status_ = ArgumentStatus::kSuccess;
@@ -141,24 +154,6 @@ std::expected<size_t, ArgumentParsingError> SpecificArgument<T>::ParseArgument(
     return current_used_positions;
 }
 
-template<typename T>
-SpecificArgument<T>::SpecificArgument(char short_name,
-                                      const std::string& long_name,
-                                      const std::string& description) 
-    : short_name_(short_name),
-      long_name_(long_name),
-      description_(description),
-      type_(typeid(T).name()) {
-    if (std::is_same_v<bool, T>) {
-        default_value_string_ = "false";
-        default_value_ = false;
-        has_default_ = true;
-    }
-
-    store_values_to_ = new std::vector<T>;
-    was_temp_vector_created_ = true;
-}
-
 template <typename T>
 SpecificArgument<T>::~SpecificArgument() {
     if (was_temp_vector_created_) {
@@ -167,18 +162,17 @@ SpecificArgument<T>::~SpecificArgument() {
 }
 
 template<typename T>
-T SpecificArgument<T>::GetValue() const {
-    return value_;
-}
-
-template<typename T>
-T SpecificArgument<T>::GetValue(size_t index) const {
+std::optional<T> SpecificArgument<T>::GetValue(size_t index) const {
     if (is_multi_value_ && has_default_ && index >= store_values_to_->size()) {
         return default_value_;
     }
 
     if (store_values_to_->size() == 0 && has_default_) {
         return default_value_;
+    }
+
+    if (index >= store_values_to_->size()) {
+        return std::nullopt;
     }
 
     return store_values_to_->at(index);
@@ -250,8 +244,8 @@ size_t SpecificArgument<T>::GetValuesSet() const {
 }
 
 template<typename T>
-const std::string& SpecificArgument<T>::GetType() const {
-    return type_;
+std::string_view SpecificArgument<T>::GetType() const {
+    return typeid(T).name();
 }
 
 template <typename T>

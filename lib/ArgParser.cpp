@@ -3,8 +3,6 @@
 #include <algorithm>
 #include <numeric>
 
-#include <iostream>
-
 namespace ArgumentParser {
     
 ArgParser::ArgParser(const std::string& program_name, const std::string& program_description) 
@@ -72,7 +70,7 @@ std::vector<std::string_view> ArgParser::GetLongNames(std::string_view argument)
     return names;
 }
 
-bool ArgParser::Parse(const std::vector<std::string>& argv) {
+bool ArgParser::Parse(const std::vector<std::string_view>& argv) {
     RefreshParser();
 
     std::vector<size_t> unused_positions;
@@ -101,17 +99,20 @@ bool ArgParser::Parse(const std::vector<std::string>& argv) {
             error_ = {argv[position], ArgumentParsingErrorType::kUnknownArgument};
             return false;
         }
+        
 
-        for (const std::string_view long_name : long_names) {
-            if (!arguments_indeces_.contains(long_name)) {
-                error_ = {argv[position], ArgumentParsingErrorType::kUnknownArgument, std::string(long_name)};
+        for (std::string_view long_name : long_names) {
+            std::string name{long_name};
+
+            if (!arguments_indeces_.contains(name)) {
+                error_ = {argv[position], ArgumentParsingErrorType::kUnknownArgument, long_name};
                 return false;
             }
 
-            size_t argument_index = arguments_indeces_.at(long_name);
+            size_t argument_index = arguments_indeces_.at(name);
 
             if (arguments_[argument_index]->IsPositional()) {
-                error_ = {argv[position], ArgumentParsingErrorType::kUnknownArgument, std::string(long_name)};
+                error_ = {argv[position], ArgumentParsingErrorType::kUnknownArgument, long_name};
                 return false;
             }
 
@@ -143,7 +144,7 @@ bool ArgParser::Parse(const std::vector<std::string>& argv) {
     return HandleErrors();
 }
 
-void ArgParser::ParsePositionalArguments(const std::vector<std::string>& argv,
+void ArgParser::ParsePositionalArguments(const std::vector<std::string_view>& argv,
                                          const std::vector<size_t>& positions) {
     std::vector<size_t> positional_args_indeces;
     std::vector<std::string_view> positional_args;
@@ -176,9 +177,9 @@ void ArgParser::ParsePositionalArguments(const std::vector<std::string>& argv,
 
                 if (!current_used_positions.has_value()) {
                     error_ = current_used_positions.error();
-                    error_;
                     return;
                 }
+
                 ++position;
             }
 
@@ -200,6 +201,17 @@ bool ArgParser::Parse(int argc, char **argv) {
     new_argv.reserve(argc);
 
     for (size_t i = 0; i < argc; ++i) {
+        new_argv.push_back(argv[i]);
+    }
+
+    return Parse(new_argv);
+}
+
+bool ArgParser::Parse(const std::vector<std::string>& argv) {
+    std::vector<std::string_view> new_argv;
+    new_argv.reserve(argv.size());
+
+    for (size_t i = 0; i < argv.size(); ++i) {
         new_argv.push_back(argv[i]);
     }
 
@@ -240,7 +252,7 @@ bool ArgParser::Help() const {
 }
 
 std::string ArgParser::HelpDescription() const {
-    std::string result = program_name_ + '\n';
+    std::string result = std::string(program_name_) + '\n';
 
     size_t max_argument_names_length = 0;
 
@@ -256,14 +268,14 @@ std::string ArgParser::HelpDescription() const {
         result += '\n';
     }
 
-    result += "Usage: " + program_name_ + " [OPTIONS]";
+    result += "Usage: " + std::string(program_name_) + " [OPTIONS]";
 
     for (const Argument* argument : arguments_) {
         if (!argument->IsPositional()) {
             continue;
         }
 
-        result += " <" + argument->GetLongName() + ">";
+        result += " <" + std::string(argument->GetLongName()) + ">";
 
         if (argument->IsMultiValue()) {
             result += "...";
@@ -306,7 +318,7 @@ std::string ArgParser::GetArgumentDescription(const Argument* argument,
         if (!is_first_option) {
             options += "; ";
         }
-        
+
         options += "default = " + argument->GetDefaultValueString();
     }
 
@@ -348,6 +360,15 @@ ArgumentParsingError ArgParser::GetError() const {
 
 bool ArgParser::HasError() const {
     return error_.status != ArgumentParsingErrorType::kSuccess;
+}
+
+std::optional<ArgumentStatus> ArgParser::GetValueStatus(const std::string& long_name) const {
+    if (!arguments_indeces_.contains(long_name)) {
+        return std::nullopt;
+    }
+
+    size_t argument_index = arguments_indeces_.at(long_name);
+    return arguments_.at(argument_index)->GetValueStatus();
 }
 
 } // namespace ArgumentParser

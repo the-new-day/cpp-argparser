@@ -1,12 +1,12 @@
 #pragma once
 
-#include "Argument.hpp"
 #include "SpecificArgument.hpp"
 
 #include <string>
 #include <vector>
 #include <map>
 #include <cstdint>
+#include <optional>
 
 #define ARGPARSER_ADD_ARGUMENT(NewName, Type) \
 inline SpecificArgument<Type>& NewName(char short_name, \
@@ -22,21 +22,10 @@ inline SpecificArgument<Type>& NewName(const std::string& long_name, \
 
 #define ARGPARSER_GET_VALUE(NewName, Type) \
 inline Type NewName(const std::string& long_name, size_t index = 0) const { \
-    return GetValue<Type>(long_name, index); \
-} \
-
-#define ARGPARSER_GET_VALUE_STATUS(NewName, Type) \
-inline ArgumentStatus NewName(const std::string& long_name) const { \
-    return GetValueStatus<Type>(long_name); \
+    return GetValue<Type>(long_name, index).value(); \
 } \
 
 namespace ArgumentParser {
-
-struct HelpArgument {
-    char short_name = kNoShortName;
-    std::string long_name;
-    std::string description;
-};
 
 class ArgParser {
 public:
@@ -45,35 +34,20 @@ public:
 
     template<typename T>
     SpecificArgument<T>& AddArgument(char short_name,
-                                            const std::string& long_name,
-                                            const std::string& description = "");
+                                     const std::string& long_name,
+                                     const std::string& description = "");
 
     template<typename T>
     SpecificArgument<T>& AddArgument(const std::string& long_name,
-                                            const std::string& description = "");
+                                     const std::string& description = "");
 
-    ARGPARSER_ADD_ARGUMENT(AddIntArgument, int32_t);
-    ARGPARSER_ADD_ARGUMENT(AddStringArgument, std::string);
-    ARGPARSER_ADD_ARGUMENT(AddFlag, bool);
-    ARGPARSER_ADD_ARGUMENT(AddDoubleArgument, double);
+    std::optional<ArgumentStatus> GetValueStatus(const std::string& long_name) const;
 
     template<typename T>
-    ArgumentStatus GetValueStatus(const std::string& long_name) const;
-
-    ARGPARSER_GET_VALUE_STATUS(GetIntValueStatus, int32_t);
-    ARGPARSER_GET_VALUE_STATUS(GetStringValueStatus, std::string);
-    ARGPARSER_GET_VALUE_STATUS(GetFlagStatus, bool);
-    ARGPARSER_GET_VALUE_STATUS(GetDoubleValueStatus, double);
-
-    template<typename T>
-    T GetValue(const std::string& long_name, size_t index = 0) const;
-
-    ARGPARSER_GET_VALUE(GetIntValue, int32_t);
-    ARGPARSER_GET_VALUE(GetStringValue, std::string);
-    ARGPARSER_GET_VALUE(GetFlag, bool);
-    ARGPARSER_GET_VALUE(GetDoubleValue, double);
+    std::optional<T> GetValue(const std::string& long_name, size_t index = 0) const;
 
     bool Parse(const std::vector<std::string>& argv);
+    bool Parse(const std::vector<std::string_view>& argv);
     bool Parse(int argc, char** argv);
 
     void AddHelp(char short_name,
@@ -92,27 +66,37 @@ public:
     template<typename T>
     void SetTypeAlias(const std::string& alias);
 
+    ARGPARSER_ADD_ARGUMENT(AddIntArgument, int32_t);
+    ARGPARSER_ADD_ARGUMENT(AddStringArgument, std::string);
+    ARGPARSER_ADD_ARGUMENT(AddFlag, bool);
+    ARGPARSER_ADD_ARGUMENT(AddDoubleArgument, double);
+
+    ARGPARSER_GET_VALUE(GetIntValue, int32_t);
+    ARGPARSER_GET_VALUE(GetStringValue, std::string);
+    ARGPARSER_GET_VALUE(GetFlag, bool);
+    ARGPARSER_GET_VALUE(GetDoubleValue, double);
+
 private:
     std::string program_name_;
     std::string program_description_;
 
     std::vector<Argument*> arguments_;
 
-    std::map<char, std::string> short_names_to_long_;
-    std::map<std::string_view, size_t> arguments_indeces_;
+    std::map<char, std::string_view> short_names_to_long_;
+    std::map<std::string, size_t> arguments_indeces_;
 
-    std::map<std::string, std::string> help_description_types_;
+    std::map<std::string_view, std::string> help_description_types_;
 
     ArgumentParsingError error_;
 
     bool need_help_ = false;
-    std::string help_argument_name_;
+    std::string_view help_argument_name_;
 
     void RefreshParser();
 
     std::vector<std::string_view> GetLongNames(std::string_view argument) const;
 
-    void ParsePositionalArguments(const std::vector<std::string>& argv,
+    void ParsePositionalArguments(const std::vector<std::string_view>& argv,
                                   const std::vector<size_t>& positions);
 
     bool HandleErrors();
@@ -125,8 +109,8 @@ private:
 
 template<typename T>
 SpecificArgument<T>& ArgParser::AddArgument(char short_name,
-                                                   const std::string& long_name,
-                                                   const std::string& description) {
+                                            const std::string& long_name,
+                                            const std::string& description) {
     auto* argument = new SpecificArgument<T>(short_name, long_name, description);
 
     arguments_indeces_[long_name] = arguments_.size();
@@ -139,18 +123,16 @@ SpecificArgument<T>& ArgParser::AddArgument(char short_name,
 
 template<typename T>
 SpecificArgument<T>& ArgParser::AddArgument(const std::string& long_name,
-                                                   const std::string& description) {
+                                            const std::string& description) {
     return AddArgument<T>(kNoShortName, long_name, description);
 }
 
 template <typename T>
-ArgumentStatus ArgParser::GetValueStatus(const std::string& long_name) const {
-    size_t argument_index = arguments_indeces_.at(long_name);
-    return arguments_.at(argument_index)->GetValueStatus();
-}
+std::optional<T> ArgParser::GetValue(const std::string& long_name, size_t index) const {
+    if (!arguments_indeces_.contains(long_name)) {
+        return std::nullopt;
+    }
 
-template <typename T>
-T ArgParser::GetValue(const std::string& long_name, size_t index) const {
     size_t argument_index = arguments_indeces_.at(long_name);
     auto* argument = static_cast<SpecificArgument<T>*>(arguments_.at(argument_index));
 
@@ -166,4 +148,3 @@ void ArgParser::SetTypeAlias(const std::string& alias) {
 
 #undef ARGPARSER_ADD_ARGUMENT
 #undef ARGPARSER_GET_VALUE
-#undef ARGPARSER_GET_VALUE_STATUS
