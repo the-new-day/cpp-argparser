@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Argument.hpp"
+#include "utils/utils.hpp"
 
 #include <cstddef>
 #include <type_traits>
@@ -8,6 +9,9 @@
 #include <sstream>
 
 namespace ArgumentParser {
+
+template<typename T>
+std::expected<T, ArgumentParsingErrorType> ParseValue(std::string_view value_string);
 
 template<typename T>
 class SpecificArgument : public Argument {
@@ -55,7 +59,7 @@ protected:
     ArgumentStatus value_status_ = ArgumentStatus::kNoArgument;
 
     T value_;
-    T default_value_;
+    T default_value_{};
     std::string default_value_string_;
     bool was_default_value_string_set_ = false;
 
@@ -72,8 +76,6 @@ protected:
     bool has_store_value_ = false;
 
     size_t values_set_ = 0;
-
-    ArgumentParsingErrorType ParseValue(std::string_view value_string);
 };
 
 template<typename T>
@@ -85,7 +87,6 @@ SpecificArgument<T>::SpecificArgument(char short_name,
       description_(description) {
     if (std::is_same_v<bool, T>) {
         default_value_string_ = "false";
-        default_value_ = false;
         has_default_ = true;
     }
 
@@ -132,11 +133,14 @@ std::expected<size_t, ArgumentParsingError> SpecificArgument<T>::ParseArgument(
         value_string = argv[position];
     }
 
-    ArgumentParsingErrorType parsing_result = ParseValue(value_string);
+    auto parsing_result = ParseValue<T>(value_string);
 
-    if (parsing_result != ArgumentParsingErrorType::kSuccess) {
-        return std::unexpected(ArgumentParsingError{argv[position], parsing_result, long_name_});
+    if (!parsing_result.has_value()) {
+        value_status_ = ArgumentStatus::kInvalidArgument;
+        return std::unexpected(ArgumentParsingError{argv[position], parsing_result.error(), long_name_});
     }
+
+    value_ = parsing_result.value();
 
     store_values_to_->push_back(value_);
     ++values_set_;

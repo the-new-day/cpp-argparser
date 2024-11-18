@@ -7,44 +7,37 @@
 namespace ArgumentParser {
 
 template<>
-ArgumentParsingErrorType SpecificArgument<int32_t>::ParseValue(std::string_view value_string) {
+std::expected<int32_t, ArgumentParsingErrorType> ParseValue<int32_t>(std::string_view value_string) {
     auto parsing_result = ParseNumber<int32_t>(value_string);
     if (!parsing_result.has_value()) {
-        value_status_ = ArgumentStatus::kInvalidArgument;
-        return ArgumentParsingErrorType::kInvalidArgument;
+        return std::unexpected(ArgumentParsingErrorType::kInvalidArgument);
     }
 
-    value_ = parsing_result.value();
-    return ArgumentParsingErrorType::kSuccess;
+    return parsing_result.value();
 }
 
 template<>
-ArgumentParsingErrorType SpecificArgument<std::string>::ParseValue(std::string_view value_string) {
-    value_ = value_string;
-    return ArgumentParsingErrorType::kSuccess;
+std::expected<std::string, ArgumentParsingErrorType> ParseValue<std::string>(std::string_view value_string) {
+    return std::string(value_string);
 }
 
 template<>
-ArgumentParsingErrorType SpecificArgument<bool>::ParseValue(std::string_view value_string) {
+std::expected<bool, ArgumentParsingErrorType> ParseValue<bool>(std::string_view value_string) {
     if (!value_string.empty()) {
-        value_status_ = ArgumentStatus::kInvalidArgument;
-        return ArgumentParsingErrorType::kInvalidArgument;
+        return std::unexpected(ArgumentParsingErrorType::kInvalidArgument);
     }
 
-    value_ = true;
-    return ArgumentParsingErrorType::kSuccess;
+    return true;
 }
 
 template<>
-ArgumentParsingErrorType SpecificArgument<double>::ParseValue(std::string_view value_string) {
+std::expected<double, ArgumentParsingErrorType> ParseValue<double>(std::string_view value_string) {
     auto parsing_result = ParseNumber<double>(value_string);
     if (!parsing_result.has_value()) {
-        value_status_ = ArgumentStatus::kInvalidArgument;
-        return ArgumentParsingErrorType::kInvalidArgument;
+        return std::unexpected(ArgumentParsingErrorType::kInvalidArgument);
     }
 
-    value_ = parsing_result.value();
-    return ArgumentParsingErrorType::kSuccess;
+    return parsing_result.value();
 }
     
 } // namespace ArgumentParser
