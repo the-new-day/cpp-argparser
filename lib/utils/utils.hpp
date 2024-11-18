@@ -22,4 +22,3 @@ std::expected<T, std::string> ParseNumber(std::string_view str) {
 }
 
 } // namespace ArgumentParser
-

@@ -31,33 +31,27 @@ struct ArgumentParsingError {
     std::string argument_name{};
 };
 
-struct ArgumentInfo {
-    std::string long_name;
-    char short_name = kNoShortName;
-    std::string description;
-    std::string type;
-
-    size_t minimum_values = 0;
-    bool is_multi_value = false;
-    bool is_positional = false;
-    bool has_default = false;
-    bool has_store_values = false;
-    bool has_store_value = false;
-};
-
 class Argument {
 public:
-    virtual ~Argument() = default;
-
-    virtual const ArgumentInfo& GetInfo() const = 0;
     virtual const std::string& GetType() const = 0;
     virtual ArgumentStatus GetValueStatus() const = 0;
     virtual size_t GetValuesSet() const = 0;
+    virtual const std::string& GetDefaultValueString() const = 0;
+    virtual void SetDefaultValueString(const std::string& str) = 0;
+
+    virtual const std::string& GetDescription() const = 0;
+    virtual const std::string& GetLongName() const = 0;
+    virtual char GetShortName() const = 0;
+
+    virtual bool IsPositional() const = 0;
+    virtual bool IsMultiValue() const = 0;
+    virtual bool HasDefault() const = 0;
+    virtual size_t GetMinimumValues() const = 0;
 
     virtual std::expected<size_t, ArgumentParsingError> ParseArgument(const std::vector<std::string>& argv,
                                                                       size_t position) = 0;
 
-    virtual void ClearValuesStorage() = 0;
+    virtual void Clear() = 0;
 };
 
 } // namespace ArgumentParser

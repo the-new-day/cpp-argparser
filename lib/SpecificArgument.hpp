@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <type_traits>
 #include <expected>
+#include <sstream>
 
 #include <iostream>
 
@@ -13,12 +14,13 @@ namespace ArgumentParser {
 template<typename T>
 class SpecificArgument : public Argument {
 public:
-    SpecificArgument(const ArgumentInfo& info,
-                     const T& default_value,
-                     T* store_value_to,
-                     std::vector<T>* store_values_to);
+    SpecificArgument() = delete;
+    SpecificArgument(char short_name,
+                     const std::string& long_name,
+                     const std::string& description);
 
-    const ArgumentInfo& GetInfo() const override;
+    ~SpecificArgument();
+
     const std::string& GetType() const override;
     ArgumentStatus GetValueStatus() const override;
     size_t GetValuesSet() const override;
@@ -29,17 +31,49 @@ public:
     T GetValue() const;
     T GetValue(size_t index) const;
 
-    void ClearValuesStorage() override;
+    SpecificArgument& Default(T default_value);
+    SpecificArgument& MultiValue(size_t min_values = 0);
+    SpecificArgument& Positional();
+    SpecificArgument& StoreValue(T& to);
+    SpecificArgument& StoreValues(std::vector<T>& to);
+
+    void Clear() override;
+
+    const std::string& GetDefaultValueString() const override;
+    void SetDefaultValueString(const std::string& str) override;
+
+    const std::string& GetDescription() const override;
+    const std::string& GetLongName() const override;
+    char GetShortName() const override;
+    bool IsPositional() const override;
+    bool IsMultiValue() const override;
+    bool HasDefault() const override;
+    size_t GetMinimumValues() const override;
 
 protected:
-    ArgumentInfo info_;
-    ArgumentStatus value_status_;
+    std::string long_name_;
+    char short_name_ = kNoShortName;
+    std::string description_;
+    std::string type_;
+
+    ArgumentStatus value_status_ = ArgumentStatus::kNoArgument;
 
     T value_;
     T default_value_;
+    std::string default_value_string_;
+    bool was_default_value_string_set_ = false;
 
-    T* store_value_to_;
-    std::vector<T>* store_values_to_;
+    T* store_value_to_ = nullptr;
+    std::vector<T>* store_values_to_ = nullptr;
+
+    bool was_temp_vector_created_ = false;
+
+    size_t minimum_values_ = 0;
+    bool is_multi_value_ = false;
+    bool is_positional_ = false;
+    bool has_default_ = false;
+    bool has_store_values_ = false;
+    bool has_store_value_ = false;
 
     size_t values_set_ = 0;
 
@@ -60,7 +94,7 @@ std::expected<size_t, ArgumentParsingError> SpecificArgument<T>::ParseArgument(
 
     bool is_short_with_value = false;
 
-    if (!info_.is_positional) {
+    if (!is_positional_) {
         if (value_string.starts_with("--")) {
             value_string = value_string.substr(2);
         } else if (value_string[0] == '-') {
@@ -75,11 +109,11 @@ std::expected<size_t, ArgumentParsingError> SpecificArgument<T>::ParseArgument(
 
     size_t equal_sign_index = value_string.find('=');
 
-    if (!info_.is_positional && equal_sign_index != std::string_view::npos) {
+    if (!is_positional_ && equal_sign_index != std::string_view::npos) {
         value_string = value_string.substr(equal_sign_index + 1);
     } else if (std::is_same_v<bool, T>) {
         value_string = "";
-    } else if (!info_.is_positional && !is_short_with_value) {
+    } else if (!is_positional_ && !is_short_with_value) {
         ++position;
         ++current_used_positions;
         value_string = argv[position];
@@ -88,36 +122,47 @@ std::expected<size_t, ArgumentParsingError> SpecificArgument<T>::ParseArgument(
     ArgumentParsingErrorType parsing_result = ParseValue(value_string);
 
     if (parsing_result != ArgumentParsingErrorType::kSuccess) {
-        return std::unexpected(ArgumentParsingError{argv[position], parsing_result});
+        return std::unexpected(ArgumentParsingError{argv[position], parsing_result, long_name_});
     }
 
     store_values_to_->push_back(value_);
     ++values_set_;
 
-    if (info_.has_store_value) {
+    if (has_store_value_) {
         *store_value_to_ = value_;
     }
 
-    if (value_status_ != ArgumentStatus::kInvalidArgument
-        && store_values_to_->size() < info_.minimum_values && !info_.has_default) {
+    if (values_set_ < minimum_values_ && !has_default_) {
         value_status_ = ArgumentStatus::kInsufficient;
+    } else {
+        value_status_ = ArgumentStatus::kSuccess;
     }
 
     return current_used_positions;
 }
 
 template<typename T>
-SpecificArgument<T>::SpecificArgument(const ArgumentInfo& info,
-                                      const T& default_value,
-                                      T* store_value_to,
-                                      std::vector<T>* store_values_to) 
-    : info_(info),
-      default_value_(default_value),
-      store_value_to_(store_value_to),
-      store_values_to_(store_values_to),
-      value_status_(ArgumentStatus::kNoArgument) {
-    if (info.has_default) {
-        value_status_ = ArgumentStatus::kSuccess;
+SpecificArgument<T>::SpecificArgument(char short_name,
+                                      const std::string& long_name,
+                                      const std::string& description) 
+    : short_name_(short_name),
+      long_name_(long_name),
+      description_(description),
+      type_(typeid(T).name()) {
+    if (std::is_same_v<bool, T>) {
+        default_value_string_ = "false";
+        default_value_ = false;
+        has_default_ = true;
+    }
+
+    store_values_to_ = new std::vector<T>;
+    was_temp_vector_created_ = true;
+}
+
+template <typename T>
+SpecificArgument<T>::~SpecificArgument() {
+    if (was_temp_vector_created_) {
+        delete store_values_to_;
     }
 }
 
@@ -128,11 +173,11 @@ T SpecificArgument<T>::GetValue() const {
 
 template<typename T>
 T SpecificArgument<T>::GetValue(size_t index) const {
-    if (info_.is_multi_value && info_.has_default && index >= store_values_to_->size()) {
+    if (is_multi_value_ && has_default_ && index >= store_values_to_->size()) {
         return default_value_;
     }
 
-    if (store_values_to_->size() == 0 && info_.has_default) {
+    if (store_values_to_->size() == 0 && has_default_) {
         return default_value_;
     }
 
@@ -140,13 +185,63 @@ T SpecificArgument<T>::GetValue(size_t index) const {
 }
 
 template <typename T>
-void SpecificArgument<T>::ClearValuesStorage() {
+void SpecificArgument<T>::Clear() {
     store_values_to_->clear();
     values_set_ = 0;
+    value_status_ = has_default_ ? ArgumentStatus::kSuccess : ArgumentStatus::kNoArgument;
 
-    if (store_value_to_ != nullptr) {
+    if (has_store_value_) {
         *store_value_to_ = default_value_;
     }
+}
+
+template<typename T>
+SpecificArgument<T>& SpecificArgument<T>::Default(T default_value) {
+    if (!was_default_value_string_set_) {
+        std::ostringstream stream;
+        stream << default_value;
+        default_value_string_ = stream.str();
+        
+        if (std::is_same_v<bool, T>) {
+            default_value_string_ = (default_value_string_ == "1") ? "true" : "false";
+        }
+    }
+
+    default_value_ = default_value;
+    has_default_ = true;
+    return *this;
+}
+
+template<typename T>
+SpecificArgument<T>& SpecificArgument<T>::MultiValue(size_t min_values) {
+    minimum_values_ = min_values;
+    is_multi_value_ = true;
+    return *this;
+}
+
+template<typename T>
+SpecificArgument<T>& SpecificArgument<T>::Positional() {
+    is_positional_ = true;
+    return *this;
+}
+
+template<typename T>
+SpecificArgument<T>& SpecificArgument<T>::StoreValue(T& to) {
+    store_value_to_ = &to;
+    has_store_value_ = true;
+    return *this;
+}
+
+template<typename T>
+SpecificArgument<T>& SpecificArgument<T>::StoreValues(std::vector<T>& to) {
+    if (was_temp_vector_created_) {
+        delete store_values_to_;
+        was_temp_vector_created_ = false;
+    }
+
+    store_values_to_ = &to;
+    has_store_values_ = true;
+    return *this;
 }
 
 template <typename T>
@@ -155,18 +250,59 @@ size_t SpecificArgument<T>::GetValuesSet() const {
 }
 
 template<typename T>
-const ArgumentInfo& SpecificArgument<T>::GetInfo() const {
-    return info_;
-}
-
-template<typename T>
 const std::string& SpecificArgument<T>::GetType() const {
-    return info_.type;
+    return type_;
 }
 
 template <typename T>
 ArgumentStatus SpecificArgument<T>::GetValueStatus() const {
     return value_status_;
+}
+
+template <typename T>
+const std::string& SpecificArgument<T>::GetDefaultValueString() const {
+    return default_value_string_;
+}
+
+template <typename T>
+void SpecificArgument<T>::SetDefaultValueString(const std::string& str) {
+    default_value_string_ = str;
+    was_default_value_string_set_ = true;
+}
+
+template <typename T>
+const std::string& SpecificArgument<T>::GetDescription() const {
+    return description_;
+}
+
+template <typename T>
+const std::string& SpecificArgument<T>::GetLongName() const {
+    return long_name_;
+}
+
+template <typename T>
+char SpecificArgument<T>::GetShortName() const {
+    return short_name_;
+}
+
+template <typename T>
+bool SpecificArgument<T>::IsPositional() const {
+    return is_positional_;
+}
+
+template <typename T>
+bool SpecificArgument<T>::IsMultiValue() const {
+    return is_multi_value_;
+}
+
+template <typename T>
+bool SpecificArgument<T>::HasDefault() const {
+    return has_default_;
+}
+
+template <typename T>
+size_t SpecificArgument<T>::GetMinimumValues() const {
+    return minimum_values_;
 }
 
 } // namespace ArgumentParser

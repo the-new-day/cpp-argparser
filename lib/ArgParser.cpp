@@ -3,16 +3,18 @@
 #include <algorithm>
 #include <numeric>
 
-#include <iostream> // TODO: remove
+#include <iostream>
 
 namespace ArgumentParser {
     
-ArgParser::ArgParser(const std::string& program_name) : program_name_(program_name) {
+ArgParser::ArgParser(const std::string& program_name, const std::string& program_description) 
+    : program_name_(program_name),
+      program_description_(program_description) {
     help_description_types_ = {
         {typeid(int32_t).name(), "int"},
         {typeid(std::string).name(), "string"},
         {typeid(bool).name(), ""},
-        {typeid(double).name(), "double"}
+        {typeid(double).name(), "double"},
     };
 }
 
@@ -20,22 +22,11 @@ ArgParser::~ArgParser() {
     for (auto* argument : arguments_) {
         delete argument;
     }
-
-    for (auto* builder : argument_builders_) {
-        delete builder;
-    }
 }
 
 void ArgParser::RefreshParser() {
     for (auto* argument : arguments_) {
-        argument->ClearValuesStorage();
-        delete argument;
-    }
-
-    arguments_.clear();
-
-    for (auto* builder : argument_builders_) {
-        arguments_.push_back(builder->Build());
+        argument->Clear();
     }
 
     error_ = ArgumentParsingError{};
@@ -88,7 +79,6 @@ bool ArgParser::Parse(const std::vector<std::string>& argv) {
 
     for (size_t position = 1; position < argv.size(); ++position) {
         std::string_view argument = argv[position];
-        std::string_view argument_name;
 
         if (argument == "--") {
             unused_positions.reserve(argv.size() - position - 1);
@@ -100,7 +90,7 @@ bool ArgParser::Parse(const std::vector<std::string>& argv) {
             break;
         }
 
-        if (argument[0] != '-' || argument.size() == 1) {
+        if (argument[0] != '-' || argument.length() == 1) {
             unused_positions.push_back(position);
             continue;
         }
@@ -119,6 +109,11 @@ bool ArgParser::Parse(const std::vector<std::string>& argv) {
             }
 
             size_t argument_index = arguments_indeces_.at(long_name);
+
+            if (arguments_[argument_index]->IsPositional()) {
+                error_ = {argv[position], ArgumentParsingErrorType::kUnknownArgument, std::string(long_name)};
+                return false;
+            }
 
             std::expected<size_t, ArgumentParsingError> current_used_positions 
                 = arguments_[argument_index]->ParseArgument(argv, position);
@@ -154,7 +149,7 @@ void ArgParser::ParsePositionalArguments(const std::vector<std::string>& argv,
     std::vector<std::string_view> positional_args;
 
     for (size_t i = 0; i < arguments_.size(); ++i) {
-        if (arguments_[i]->GetInfo().is_positional) {
+        if (arguments_[i]->IsPositional()) {
             positional_args_indeces.push_back(i);
         }
     }
@@ -174,16 +169,16 @@ void ArgParser::ParsePositionalArguments(const std::vector<std::string>& argv,
     for (size_t argument_index = 0, position = 0;
         position < positions.size() && argument_index < positional_args_indeces.size();
         ++argument_index, ++position) {
-        if (arguments_[positional_args_indeces[argument_index]]->GetInfo().is_multi_value) {
+        if (arguments_[positional_args_indeces[argument_index]]->IsMultiValue()) {
             while (position < positions.size()) {
                 std::expected<size_t, ArgumentParsingError> current_used_positions 
                     = arguments_[positional_args_indeces[argument_index]]->ParseArgument(argv, positions[position]);
 
                 if (!current_used_positions.has_value()) {
                     error_ = current_used_positions.error();
+                    error_;
                     return;
                 }
-
                 ++position;
             }
 
@@ -224,7 +219,7 @@ bool ArgParser::HandleErrors() {
             error_.status = ArgumentParsingErrorType::kNoArgument;
         }
         
-        error_.argument_name = argument->GetInfo().long_name;
+        error_.argument_name = argument->GetLongName();
         return false;
     }
 
@@ -249,61 +244,70 @@ std::string ArgParser::HelpDescription() const {
 
     size_t max_argument_names_length = 0;
 
-    for (const ArgumentBuilder* argument : argument_builders_) {
-        size_t length = GetArgumentNamesDescription(argument->GetInfo()).length();
+    for (const Argument* argument : arguments_) {
+        size_t length = GetArgumentNamesDescription(argument).length();
         if (length > max_argument_names_length) {
             max_argument_names_length = length;
         }
     }
 
-    if (!help_argument_name_.empty()) {
-        result += arguments_.at(arguments_indeces_.at(help_argument_name_))->GetInfo().description;
+    if (!program_description_.empty()) {
+        result += program_description_;
         result += '\n';
     }
 
-    // TODO: print positional arguments before options
-    // something like "Usage: app [OPTIONS] <arg1> <arg2> <arg3>"
+    result += "Usage: " + program_name_ + " [OPTIONS]";
 
-    result += '\n';
-
-    for (const ArgumentBuilder* argument : argument_builders_) {
-        ArgumentInfo info = argument->GetInfo();
-        if (info.is_positional) {
+    for (const Argument* argument : arguments_) {
+        if (!argument->IsPositional()) {
             continue;
         }
 
-        result += GetArgumentDescription(info, max_argument_names_length);
+        result += " <" + argument->GetLongName() + ">";
+
+        if (argument->IsMultiValue()) {
+            result += "...";
+            break;
+        }
+    }
+
+    result += "\nList of options:\n";
+
+    for (const Argument* argument : arguments_) {
+        if (argument->IsPositional()) {
+            continue;
+        }
+
+        result += GetArgumentDescription(argument, max_argument_names_length);
         result += '\n';
     }
 
     return result;
 }
 
-std::string ArgParser::GetArgumentDescription(const ArgumentInfo& info,
+std::string ArgParser::GetArgumentDescription(const Argument* argument,
                                               size_t max_argument_names_length) const {
-    std::string result = GetArgumentNamesDescription(info);
+    std::string result = GetArgumentNamesDescription(argument);
 
     result.insert(result.end(), max_argument_names_length - result.length() + 2, ' ');
-    result += info.description;
+    result += argument->GetDescription();
 
     std::string options = " [";
 
     bool is_first_option = true;
 
-    // TODO: "repeated, ", "min values = " etc. - should be user-configurable
-
-    if (info.is_multi_value) {
-        options += "repeated, ";
-        options += "min values = " + std::to_string(info.minimum_values);
+    if (argument->IsMultiValue()) {
+        options += "repeated, min values = ";
+        options += std::to_string(argument->GetMinimumValues());
         is_first_option = false;
     }
 
-    if (info.has_default) {
+    if (argument->HasDefault() && argument->GetLongName() != help_argument_name_) {
         if (!is_first_option) {
             options += "; ";
         }
-
-        options += "default = ";
+        
+        options += "default = " + argument->GetDefaultValueString();
     }
 
     options += ']';
@@ -315,22 +319,23 @@ std::string ArgParser::GetArgumentDescription(const ArgumentInfo& info,
     return result;
 }
 
-std::string ArgParser::GetArgumentNamesDescription(const ArgumentInfo& info) const {
+std::string ArgParser::GetArgumentNamesDescription(const Argument* argument) const {
     std::string result;
-    if (info.short_name == kNoShortName) {
+    if (argument->GetShortName() == kNoShortName) {
         result.insert(0, 4, ' ');
     } else {
         result = "-";
-        result += info.short_name;
+        result += argument->GetShortName();
         result += ", ";
     }
 
     result += "--";
-    result += info.long_name;
+    result += argument->GetLongName();
 
-    if (help_description_types_.contains(info.type)) {
+    if (help_description_types_.contains(argument->GetType()) 
+        && !help_description_types_.at(argument->GetType()).empty()) {
         result += "=<";
-        result += help_description_types_.at(info.type);
+        result += help_description_types_.at(argument->GetType());
         result += ">";
     }
 

@@ -11,15 +11,22 @@ struct Options {
 };
 
 int main(int argc, char** argv) {
-    ArgumentParser::ArgParser parser("My Parser");
-    double val;
-    parser.AddDoubleArgument('r', "ratio", "I have no idea what this may be").StoreValue(val);
-    parser.AddStringArgument('i', "input", "Input file").Default("somefile.tsv").MultiValue(2);
-    parser.AddIntArgument('i', "input", "Input file").Default(4).MultiValue(21111);
-    parser.AddIntArgument("boba", "Some positional fooly argument").Positional();
+    ArgumentParser::ArgParser parser("Sandpile", "Abelian sandpile model implementation");
 
-    //parser.Parse({"app", "-r-4.2", "-itest.tsv"});
-    std::cout << parser.HelpDescription() << std::endl;
+    parser.AddHelp('h', "help", "Display this help and exit");
+    parser.AddStringArgument('i', "input", "File path for input file");
+    parser.AddStringArgument('o', "output", "File path for output directory");
+    parser.AddFlag('s', "flag1", "Read first number");
+    parser.AddFlag('p', "flag2", "Read second number").Default(true);
+    parser.AddIntArgument("number", "Some Number").Default(3);
+
+    parser.SetTypeAlias<double>("float");
+
+    std::cout << parser.Parse(argc, argv) << std::endl;
+
+    if (parser.Help()) {
+        std::cout << parser.HelpDescription() << std::endl;
+    }
 
     // Options opt;
     // std::vector<int> values;

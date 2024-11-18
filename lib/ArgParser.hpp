@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Argument.hpp"
-#include "SpecificArgumentBuilder.hpp"
+#include "SpecificArgument.hpp"
 
 #include <string>
 #include <vector>
@@ -9,13 +9,13 @@
 #include <cstdint>
 
 #define ARGPARSER_ADD_ARGUMENT(NewName, Type) \
-inline SpecificArgumentBuilder<Type>& NewName(char short_name, \
+inline SpecificArgument<Type>& NewName(char short_name, \
                                        const std::string& long_name, \
                                        const std::string& description = "") { \
     return AddArgument<Type>(short_name, long_name, description); \
 } \
 \
-inline SpecificArgumentBuilder<Type>& NewName(const std::string& long_name, \
+inline SpecificArgument<Type>& NewName(const std::string& long_name, \
                                        const std::string& description = "") { \
     return AddArgument<Type>(kNoShortName, long_name, description); \
 } \
@@ -40,16 +40,16 @@ struct HelpArgument {
 
 class ArgParser {
 public:
-    ArgParser(const std::string& program_name);
+    explicit ArgParser(const std::string& program_name, const std::string& program_description = "");
     ~ArgParser();
 
     template<typename T>
-    SpecificArgumentBuilder<T>& AddArgument(char short_name,
+    SpecificArgument<T>& AddArgument(char short_name,
                                             const std::string& long_name,
                                             const std::string& description = "");
 
     template<typename T>
-    SpecificArgumentBuilder<T>& AddArgument(const std::string& long_name,
+    SpecificArgument<T>& AddArgument(const std::string& long_name,
                                             const std::string& description = "");
 
     ARGPARSER_ADD_ARGUMENT(AddIntArgument, int32_t);
@@ -89,11 +89,14 @@ public:
     ArgumentParsingError GetError() const;
     bool HasError() const;
 
+    template<typename T>
+    void SetTypeAlias(const std::string& alias);
+
 private:
     std::string program_name_;
+    std::string program_description_;
 
     std::vector<Argument*> arguments_;
-    std::vector<ArgumentBuilder*> argument_builders_;
 
     std::map<char, std::string> short_names_to_long_;
     std::map<std::string_view, size_t> arguments_indeces_;
@@ -114,28 +117,28 @@ private:
 
     bool HandleErrors();
 
-    std::string GetArgumentDescription(const ArgumentInfo& info,
+    std::string GetArgumentDescription(const Argument* argument,
                                        size_t max_argument_names_length) const;
 
-    std::string GetArgumentNamesDescription(const ArgumentInfo& info) const;
+    std::string GetArgumentNamesDescription(const Argument* argument) const;
 };
 
 template<typename T>
-SpecificArgumentBuilder<T>& ArgParser::AddArgument(char short_name,
+SpecificArgument<T>& ArgParser::AddArgument(char short_name,
                                                    const std::string& long_name,
                                                    const std::string& description) {
-    auto* argument_builder = new SpecificArgumentBuilder<T>(short_name, long_name, description);
+    auto* argument = new SpecificArgument<T>(short_name, long_name, description);
 
-    arguments_indeces_[long_name] = argument_builders_.size();
+    arguments_indeces_[long_name] = arguments_.size();
 
-    argument_builders_.push_back(argument_builder);
+    arguments_.push_back(argument);
     short_names_to_long_[short_name] = long_name;
 
-    return *argument_builder;
+    return *argument;
 }
 
 template<typename T>
-SpecificArgumentBuilder<T>& ArgParser::AddArgument(const std::string& long_name,
+SpecificArgument<T>& ArgParser::AddArgument(const std::string& long_name,
                                                    const std::string& description) {
     return AddArgument<T>(kNoShortName, long_name, description);
 }
@@ -152,6 +155,11 @@ T ArgParser::GetValue(const std::string& long_name, size_t index) const {
     auto* argument = static_cast<SpecificArgument<T>*>(arguments_.at(argument_index));
 
     return argument->GetValue(index);
+}
+
+template <typename T>
+void ArgParser::SetTypeAlias(const std::string& alias) {
+    help_description_types_[typeid(T).name()] = alias;
 }
 
 } // namespace ArgumentParser

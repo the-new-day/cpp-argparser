@@ -300,3 +300,26 @@ TEST(ArgParserTestSuite, MultiValueWithDefaultTest) {
     ASSERT_EQ(parser.GetDoubleValue("ratio", 0), -4.2);
     ASSERT_EQ(parser.GetDoubleValue("ratio", 10), 3.14);
 }
+
+
+TEST(ArgParserTestSuite, MultiValuePositionalTest) {
+    ArgParser parser("My Parser");
+    parser.AddDoubleArgument('r', "ratio", "I have no idea what this may be")
+          .Positional()
+          .MultiValue(2);
+
+    ASSERT_FALSE(parser.Parse(SplitString("app -- -4.2")));
+    ASSERT_TRUE(parser.Parse(SplitString("app -- 3.141592 0.19")));
+}
+
+
+TEST(ArgParserTestSuite, NamedPositionalArgTest) {
+    ArgParser parser("My Parser");
+    parser.AddStringArgument('f', "film", "Your favourite film")
+          .Positional();
+
+    ASSERT_FALSE(parser.Parse(SplitString("app --film=2")));
+    ASSERT_FALSE(parser.Parse(SplitString("app -f 2")));
+    ASSERT_TRUE(parser.Parse(SplitString("app 3.141592")));
+    ASSERT_EQ(parser.GetValue<std::string>("film"), "3.141592");
+}
