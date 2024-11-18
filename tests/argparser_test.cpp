@@ -323,3 +323,29 @@ TEST(ArgParserTestSuite, NamedPositionalArgTest) {
     ASSERT_TRUE(parser.Parse(SplitString("app 3.141592")));
     ASSERT_EQ(parser.GetValue<std::string>("film"), "3.141592");
 }
+
+
+TEST(ArgParserTestSuite, ShortFlagWithValueTest) {
+    ArgParser parser("My Parser");
+    parser.AddFlag('f', "film", "Show film");
+
+    ASSERT_FALSE(parser.Parse(SplitString("app --film=2")));
+    ASSERT_FALSE(parser.Parse(SplitString("app -f2")));
+    ASSERT_TRUE(parser.Parse(SplitString("app -f")));
+}
+
+
+TEST(ArgParserTestSuite, EmptyValueTest) {
+    ArgParser parser("My Parser");
+    parser.AddStringArgument('f', "film", "Your favourite film");
+    parser.AddIntArgument('n', "number", "Some Number").Default(1);
+
+    ASSERT_TRUE(parser.Parse(SplitString("app --film=2")));
+    ASSERT_TRUE(parser.Parse(SplitString("app --film=")));
+    ASSERT_TRUE(parser.Parse(SplitString("app -f=")));
+    ASSERT_EQ(parser.GetStringValue("film"), "");
+    ASSERT_FALSE(parser.Parse(SplitString("app -f")));
+    ASSERT_FALSE(parser.Parse(SplitString("app -n=")));
+    ASSERT_FALSE(parser.Parse(SplitString("app -n")));
+    ASSERT_FALSE(parser.Parse(SplitString("app --number")));
+}

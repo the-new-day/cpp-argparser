@@ -17,7 +17,7 @@ enum class ArgumentStatus {
     kInsufficient
 };
 
-enum class ArgumentParsingErrorType {
+enum class ParsingErrorType {
     kInsufficent,
     kInvalidArgument,
     kUnknownArgument,
@@ -25,10 +25,10 @@ enum class ArgumentParsingErrorType {
     kSuccess
 };
 
-struct ArgumentParsingError {
-    std::string_view argument_string{};
-    ArgumentParsingErrorType status = ArgumentParsingErrorType::kSuccess;
-    std::string_view argument_name{};
+struct ParsingError {
+    std::string_view argument_string;
+    ParsingErrorType status = ParsingErrorType::kSuccess;
+    std::string_view argument_name;
 };
 
 class Argument {
@@ -48,8 +48,10 @@ public:
     virtual bool HasDefault() const = 0;
     virtual size_t GetMinimumValues() const = 0;
 
-    virtual std::expected<size_t, ArgumentParsingError> ParseArgument(const std::vector<std::string_view>& argv,
-                                                                      size_t position) = 0;
+    virtual bool IsFlag() const = 0;
+
+    virtual std::expected<size_t, ParsingError> ParseArgument(const std::vector<std::string_view>& argv,
+                                                              size_t position) = 0;
 
     virtual void Clear() = 0;
 };

@@ -60,7 +60,7 @@ public:
     bool Help() const;
     std::string HelpDescription() const;
 
-    ArgumentParsingError GetError() const;
+    ParsingError GetError() const;
     bool HasError() const;
 
     template<typename T>
@@ -87,7 +87,7 @@ private:
 
     std::map<std::string_view, std::string> help_description_types_;
 
-    ArgumentParsingError error_;
+    ParsingError error_;
 
     bool need_help_ = false;
     std::string_view help_argument_name_;

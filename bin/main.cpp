@@ -19,9 +19,9 @@ bool IsNumber(std::string_view str) {
 }
 
 template<>
-std::expected<uint239_t, ArgumentParsingErrorType> ArgumentParser::ParseValue<uint239_t>(std::string_view value_string) {
+std::expected<uint239_t, ParsingErrorType> ArgumentParser::ParseValue<uint239_t>(std::string_view value_string) {
     if (!IsNumber(value_string)) {
-        return std::unexpected(ArgumentParsingErrorType::kInvalidArgument);
+        return std::unexpected(ParsingErrorType::kInvalidArgument);
     }
 
     return FromString(value_string.data(), 0);
@@ -37,16 +37,32 @@ int main(int argc, char** argv) {
     std::vector<uint239_t> values;
 
     ArgumentParser::ArgParser parser("Program", "Program accumulate arguments");
-    parser.AddArgument<uint239_t>("N").MultiValue(1).Positional().StoreValues(values);
-    parser.AddFlag("sum", "add args").StoreValue(opt.sum);
-    parser.AddFlag("mult", "multiply args").StoreValue(opt.mult);
-    parser.AddHelp('h', "help", "Display help and exit");
+    parser.AddArgument<uint239_t>("N").MultiValue(2).Positional().StoreValues(values);
+    parser.AddFlag('s', "sum", "add args").StoreValue(opt.sum);
+    parser.AddFlag('m', "mult", "multiply args").StoreValue(opt.mult);
+    parser.AddHelp('h', "help", "display help and exit");
 
     if (!parser.Parse(argc, argv)) {
-        std::cout << (parser.GetError().argument_string) << std::endl;
+        auto error = parser.GetError();
 
-        std::cout << "Wrong argument" << std::endl;
-        std::cout << parser.HelpDescription() << std::endl;
+        if (error.status == ParsingErrorType::kUnknownArgument) {
+            std::cerr << "Unknown argument: " << error.argument_string << std::endl;
+            return 1;
+        }
+
+        std::cerr << "An error occured while parsing the following argument: " 
+            << (error.argument_name) << std::endl;
+
+        if (error.status == ParsingErrorType::kInvalidArgument) {
+            std::cerr << "Unable to parse: " << error.argument_string << std::endl;
+        } else if (error.status == ParsingErrorType::kNoArgument) {
+            std::cerr << "No value was specified" << std::endl;
+        } else if (error.status == ParsingErrorType::kInsufficent) {
+            std::cerr << "Not enough values were specified" << std::endl;
+        } else if (error.status == ParsingErrorType::kSuccess) {
+            std::cerr << "Success (wtf)" << std::endl;
+        }
+
         return 1;
     }
 

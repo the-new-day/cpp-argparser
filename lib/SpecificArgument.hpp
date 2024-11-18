@@ -11,7 +11,7 @@
 namespace ArgumentParser {
 
 template<typename T>
-std::expected<T, ArgumentParsingErrorType> ParseValue(std::string_view value_string);
+std::expected<T, ParsingErrorType> ParseValue(std::string_view value_string);
 
 template<typename T>
 class SpecificArgument : public Argument {
@@ -27,8 +27,8 @@ public:
     ArgumentStatus GetValueStatus() const override;
     size_t GetValuesSet() const override;
 
-    std::expected<size_t, ArgumentParsingError> ParseArgument(const std::vector<std::string_view>& argv,
-                                                              size_t position) override;
+    std::expected<size_t, ParsingError> ParseArgument(const std::vector<std::string_view>& argv,
+                                                      size_t position) override;
 
     std::optional<T> GetValue(size_t index = 0) const;
 
@@ -50,6 +50,8 @@ public:
     bool IsMultiValue() const override;
     bool HasDefault() const override;
     size_t GetMinimumValues() const override;
+
+    bool IsFlag() const override;
 
 protected:
     std::string long_name_;
@@ -75,6 +77,8 @@ protected:
     bool has_store_values_ = false;
     bool has_store_value_ = false;
 
+    bool is_flag_ = false;
+
     size_t values_set_ = 0;
 };
 
@@ -88,6 +92,7 @@ SpecificArgument<T>::SpecificArgument(char short_name,
     if (std::is_same_v<bool, T>) {
         default_value_string_ = "false";
         has_default_ = true;
+        is_flag_ = true;
     }
 
     store_values_to_ = new std::vector<T>;
@@ -95,7 +100,7 @@ SpecificArgument<T>::SpecificArgument(char short_name,
 }
 
 template <typename T>
-std::expected<size_t, ArgumentParsingError> SpecificArgument<T>::ParseArgument(
+std::expected<size_t, ParsingError> SpecificArgument<T>::ParseArgument(
     const std::vector<std::string_view>& argv,
     size_t position) {
     if (store_values_to_->empty()) {
@@ -128,6 +133,11 @@ std::expected<size_t, ArgumentParsingError> SpecificArgument<T>::ParseArgument(
     } else if (std::is_same_v<bool, T>) {
         value_string = "";
     } else if (!is_positional_ && !is_short_with_value) {
+        if (position == argv.size() - 1) {
+            value_status_ = ArgumentStatus::kInsufficient;
+            return std::unexpected(ParsingError{argv[position], ParsingErrorType::kInsufficent, long_name_});
+        }
+
         ++position;
         ++current_used_positions;
         value_string = argv[position];
@@ -137,7 +147,7 @@ std::expected<size_t, ArgumentParsingError> SpecificArgument<T>::ParseArgument(
 
     if (!parsing_result.has_value()) {
         value_status_ = ArgumentStatus::kInvalidArgument;
-        return std::unexpected(ArgumentParsingError{argv[position], parsing_result.error(), long_name_});
+        return std::unexpected(ParsingError{argv[position], parsing_result.error(), long_name_});
     }
 
     value_ = parsing_result.value();
@@ -186,6 +196,7 @@ template <typename T>
 void SpecificArgument<T>::Clear() {
     store_values_to_->clear();
     values_set_ = 0;
+
     value_status_ = has_default_ ? ArgumentStatus::kSuccess : ArgumentStatus::kNoArgument;
 
     if (has_store_value_) {
@@ -207,6 +218,7 @@ SpecificArgument<T>& SpecificArgument<T>::Default(T default_value) {
 
     default_value_ = default_value;
     has_default_ = true;
+    value_status_ = ArgumentStatus::kSuccess;
     return *this;
 }
 
@@ -214,6 +226,7 @@ template<typename T>
 SpecificArgument<T>& SpecificArgument<T>::MultiValue(size_t min_values) {
     minimum_values_ = min_values;
     is_multi_value_ = true;
+
     return *this;
 }
 
@@ -301,6 +314,11 @@ bool SpecificArgument<T>::HasDefault() const {
 template <typename T>
 size_t SpecificArgument<T>::GetMinimumValues() const {
     return minimum_values_;
+}
+
+template <typename T>
+bool SpecificArgument<T>::IsFlag() const {
+    return is_flag_;
 }
 
 } // namespace ArgumentParser
