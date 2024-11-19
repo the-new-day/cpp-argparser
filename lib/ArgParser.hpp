@@ -119,8 +119,18 @@ SpecificArgument<T>& ArgParser::AddArgument(char short_name,
                                             const std::string& description) {
     auto* argument = new SpecificArgument<T>(short_name, long_name, description);
 
-    arguments_indeces_[long_name] = arguments_.size();
+    if (arguments_indeces_.contains(long_name)) {
+        char arg_short_name = arguments_[arguments_indeces_.at(long_name)]->GetShortName();
+        short_names_to_long_.erase(arg_short_name);
+        short_names_to_long_[short_name] = long_name;
 
+        delete arguments_[arguments_indeces_.at(long_name)];
+        arguments_[arguments_indeces_.at(long_name)] = argument;
+
+        return *argument;
+    }
+
+    arguments_indeces_[long_name] = arguments_.size();
     arguments_.push_back(argument);
     short_names_to_long_[short_name] = long_name;
 
