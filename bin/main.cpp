@@ -19,9 +19,9 @@ bool IsNumber(std::string_view str) {
 }
 
 template<>
-std::expected<uint239_t, ParsingErrorType> ArgumentParser::ParseValue<uint239_t>(std::string_view value_string) {
+std::optional<uint239_t> ArgumentParser::ParseValue<uint239_t>(std::string_view value_string) {
     if (!IsNumber(value_string)) {
-        return std::unexpected(ParsingErrorType::kInvalidArgument);
+        return std::nullopt;
     }
 
     return FromString(value_string.data(), 0);
@@ -59,8 +59,6 @@ int main(int argc, char** argv) {
             std::cerr << "No value was specified" << std::endl;
         } else if (error.status == ParsingErrorType::kInsufficent) {
             std::cerr << "Not enough values were specified" << std::endl;
-        } else if (error.status == ParsingErrorType::kSuccess) {
-            std::cerr << "Success (wtf)" << std::endl;
         }
 
         return 1;
@@ -70,6 +68,8 @@ int main(int argc, char** argv) {
         std::cout << parser.HelpDescription() << std::endl;
         return 0;
     }
+
+    std::cout << "You set " << *parser.GetValuesSet("sum") << " values." << std::endl;
 
     if (opt.sum) {
         uint239_t sum = FromInt(0, 0);
