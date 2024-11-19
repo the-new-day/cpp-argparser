@@ -22,6 +22,8 @@ public:
                      const std::string& description);
 
     ~SpecificArgument();
+    SpecificArgument(const SpecificArgument&) = delete;
+    SpecificArgument& operator=(const SpecificArgument&) = delete;
 
     std::string_view GetType() const override;
     ArgumentStatus GetValueStatus() const override;
@@ -146,6 +148,7 @@ std::expected<size_t, ParsingError> SpecificArgument<T>::ParseArgument(
     auto parsing_result = ParseValue<T>(value_string);
 
     if (!parsing_result.has_value()) {
+        value_status_ = ArgumentStatus::kInvalidArgument;
         return std::unexpected(ParsingError{argv[position], ParsingErrorType::kInvalidArgument, long_name_});
     }
 

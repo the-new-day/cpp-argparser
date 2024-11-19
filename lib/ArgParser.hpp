@@ -32,6 +32,9 @@ public:
     explicit ArgParser(const std::string& program_name, const std::string& program_description = "");
     ~ArgParser();
 
+    ArgParser(const ArgParser&) = delete;
+    ArgParser& operator=(const ArgParser&) = delete;
+
     template<typename T>
     SpecificArgument<T>& AddArgument(char short_name,
                                      const std::string& long_name,
