@@ -90,12 +90,12 @@ int32_t value;
 ArgumentParser::ArgParser parser("Program name", "Program description");
 parser.AddArgument<int32_t>('n', "number", "Some number")
       .MultiValue()
-      .StoreValue(values);
+      .StoreValue(value);
 ```
 __NB__ The storage gets __cleared__ every time a parsing performs.
 
 ## Options and positional arguments
-There are 2 types of arguments: options and positional arguments. The type of an argument determines __the way it will be parsed__ and the way it will be printed in the [HelpDescription()](#does-user-need-help).
+There are 2 types of arguments: options and positional arguments. The type of an argument determines __the way it will be parsed__ and the way it will be printed in the [HelpDescription()](#help).
 
 ### Options
 Arguments are options if they begin with a hyphen delimiter (`-`). By default, all arguments that are registered as options.
@@ -116,7 +116,8 @@ parser.AddArgument<int32_t>('n', "number", "Some number")
       .Positional();
 ```
 
-If an argument in the *argv* doesn't start with a hyphen and the `--` argument wasn't present, the argument is regarded as an option.
+If an argument in the *argv* does start with a hyphen and the `--` argument wasn't present, the argument is regarded as an option.
+
 Positional argument are parsed in the same order they were registered.
 
 __NB__ If a positional argument is also a multi value, __all__ values after it will be considered the values of this argument. Meaning that only 1 positional + multi value argument can be present (all positional arguments after it will be ignored). This befavior is similar to a function with a variable amount of parameters.
@@ -234,7 +235,7 @@ Use `HelpDescription()` to get the string containg this help message.
 
 ### Type aliases
 Notice the `-s, --str=<string>` above. This line is printed because there's an alias registered for `std::string` - `string`.
-To register (or change an existing one) the alias, use `SetTypeAlias<type>(alias)`.
+To register the alias (or change an existing one), use `SetTypeAlias<type>(alias)`.
 
 Usage:
 
