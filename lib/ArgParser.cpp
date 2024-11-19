@@ -172,28 +172,28 @@ void ArgParser::ParsePositionalArguments(const std::vector<std::string_view>& ar
         return;
     }
 
-    for (size_t argument_index = 0, position = 0;
-        position < positions.size() && argument_index < positional_args_indeces.size();
-        ++argument_index, ++position) {
+    for (size_t argument_index = 0, position_index = 0;
+        position_index < positions.size() && argument_index < positional_args_indeces.size();
+        ++argument_index, ++position_index) {
         Argument* argument = arguments_[positional_args_indeces[argument_index]];
         if (argument->IsMultiValue()) {
-            while (position < positions.size()) {
+            while (position_index < positions.size()) {
                 std::expected<size_t, ParsingError> current_used_positions 
-                    = argument->ParseArgument(argv, positions[position]);
+                    = argument->ParseArgument(argv, positions[position_index]);
 
                 if (!current_used_positions.has_value()) {
                     error_ = current_used_positions.error();
                     return;
                 }
 
-                ++position;
+                ++position_index;
             }
 
             return;
         }
 
         std::expected<size_t, ParsingError> current_used_positions 
-            = argument->ParseArgument(argv, positions[position]);
+            = argument->ParseArgument(argv, positions[position_index]);
 
         if (!current_used_positions.has_value()) {
             error_ = current_used_positions.error();
@@ -262,7 +262,7 @@ bool ArgParser::Help() const {
 }
 
 std::string ArgParser::HelpDescription() const {
-    std::string result = std::string(program_name_) + '\n';
+    std::string result = program_name_ + '\n';
 
     size_t max_argument_names_length = 0;
 
@@ -278,14 +278,14 @@ std::string ArgParser::HelpDescription() const {
         result += '\n';
     }
 
-    result += "Usage: " + std::string(program_name_) + " [OPTIONS]";
+    result += "Usage: " + program_name_ + " [OPTIONS]";
 
     for (const Argument* argument : arguments_) {
         if (!argument->IsPositional()) {
             continue;
         }
 
-        result += " <" + std::string(argument->GetLongName()) + ">";
+        result += " <" + argument->GetLongName() + ">";
 
         if (argument->IsMultiValue()) {
             result += "...";
@@ -372,13 +372,20 @@ bool ArgParser::HasError() const {
     return error_.status != ParsingErrorType::kSuccess;
 }
 
+std::optional<size_t> ArgParser::GetValuesSet(const std::string& long_name) const {
+    if (!arguments_indeces_.contains(long_name)) {
+        return std::nullopt;
+    }
+
+    return arguments_[arguments_indeces_.at(long_name)]->GetValuesSet();
+}
+
 std::optional<ArgumentStatus> ArgParser::GetValueStatus(const std::string& long_name) const {
     if (!arguments_indeces_.contains(long_name)) {
         return std::nullopt;
     }
 
-    size_t argument_index = arguments_indeces_.at(long_name);
-    return arguments_.at(argument_index)->GetValueStatus();
+    return arguments_[arguments_indeces_.at(long_name)]->GetValueStatus();
 }
 
 } // namespace ArgumentParser

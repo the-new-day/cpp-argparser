@@ -39,5 +39,25 @@ std::expected<double, ParsingErrorType> ParseValue<double>(std::string_view valu
 
     return parsing_result.value();
 }
+
+template<>
+std::expected<int64_t, ParsingErrorType> ParseValue<int64_t>(std::string_view value_string) {
+    auto parsing_result = ParseNumber<int64_t>(value_string);
+    if (!parsing_result.has_value()) {
+        return std::unexpected(ParsingErrorType::kInvalidArgument);
+    }
+
+    return parsing_result.value();
+}
+
+template<>
+std::expected<uint64_t, ParsingErrorType> ParseValue<uint64_t>(std::string_view value_string) {
+    auto parsing_result = ParseNumber<uint64_t>(value_string);
+    if (!parsing_result.has_value()) {
+        return std::unexpected(ParsingErrorType::kInvalidArgument);
+    }
+
+    return parsing_result.value();
+}
     
 } // namespace ArgumentParser

@@ -66,6 +66,12 @@ public:
     template<typename T>
     void SetTypeAlias(const std::string& alias);
 
+    std::optional<size_t> GetValuesSet(const std::string& long_name) const;
+
+    // The following names are added only to match the interface in the tests.
+    // They are unsafe, exceptions may be thrown.
+    // It's better to use AddArgument<type> and GetValue<type> and check the return value.
+
     ARGPARSER_ADD_ARGUMENT(AddIntArgument, int32_t);
     ARGPARSER_ADD_ARGUMENT(AddStringArgument, std::string);
     ARGPARSER_ADD_ARGUMENT(AddFlag, bool);
