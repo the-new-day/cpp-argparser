@@ -7,54 +7,34 @@
 namespace ArgumentParser {
 
 template<>
-std::expected<int32_t, ParsingErrorType> ParseValue<int32_t>(std::string_view value_string) {
+std::optional<int32_t> ParseValue<int32_t>(std::string_view value_string) {
     auto parsing_result = ParseNumber<int32_t>(value_string);
     if (!parsing_result.has_value()) {
-        return std::unexpected(ParsingErrorType::kInvalidArgument);
+        return std::nullopt;
     }
 
     return parsing_result.value();
 }
 
 template<>
-std::expected<std::string, ParsingErrorType> ParseValue<std::string>(std::string_view value_string) {
+std::optional<std::string> ParseValue<std::string>(std::string_view value_string) {
     return std::string(value_string);
 }
 
 template<>
-std::expected<bool, ParsingErrorType> ParseValue<bool>(std::string_view value_string) {
+std::optional<bool> ParseValue<bool>(std::string_view value_string) {
     if (!value_string.empty()) {
-        return std::unexpected(ParsingErrorType::kInvalidArgument);
+        return std::nullopt;
     }
 
     return true;
 }
 
 template<>
-std::expected<double, ParsingErrorType> ParseValue<double>(std::string_view value_string) {
+std::optional<double> ParseValue<double>(std::string_view value_string) {
     auto parsing_result = ParseNumber<double>(value_string);
     if (!parsing_result.has_value()) {
-        return std::unexpected(ParsingErrorType::kInvalidArgument);
-    }
-
-    return parsing_result.value();
-}
-
-template<>
-std::expected<int64_t, ParsingErrorType> ParseValue<int64_t>(std::string_view value_string) {
-    auto parsing_result = ParseNumber<int64_t>(value_string);
-    if (!parsing_result.has_value()) {
-        return std::unexpected(ParsingErrorType::kInvalidArgument);
-    }
-
-    return parsing_result.value();
-}
-
-template<>
-std::expected<uint64_t, ParsingErrorType> ParseValue<uint64_t>(std::string_view value_string) {
-    auto parsing_result = ParseNumber<uint64_t>(value_string);
-    if (!parsing_result.has_value()) {
-        return std::unexpected(ParsingErrorType::kInvalidArgument);
+        return std::nullopt;
     }
 
     return parsing_result.value();

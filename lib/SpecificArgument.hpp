@@ -11,7 +11,7 @@
 namespace ArgumentParser {
 
 template<typename T>
-std::expected<T, ParsingErrorType> ParseValue(std::string_view value_string);
+std::optional<T> ParseValue(std::string_view value_string);
 
 template<typename T>
 class SpecificArgument : public Argument {
@@ -146,8 +146,7 @@ std::expected<size_t, ParsingError> SpecificArgument<T>::ParseArgument(
     auto parsing_result = ParseValue<T>(value_string);
 
     if (!parsing_result.has_value()) {
-        value_status_ = ArgumentStatus::kInvalidArgument;
-        return std::unexpected(ParsingError{argv[position], parsing_result.error(), long_name_});
+        return std::unexpected(ParsingError{argv[position], ParsingErrorType::kInvalidArgument, long_name_});
     }
 
     value_ = parsing_result.value();
