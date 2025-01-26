@@ -10,9 +10,21 @@ ArgParser::ArgParser(const std::string& program_name, const std::string& program
       program_description_(program_description) {
     help_description_types_ = {
         {typeid(int32_t).name(), "int"},
-        {typeid(std::string).name(), "string"},
-        {typeid(bool).name(), ""},
+        {typeid(int64_t).name(), "long long"},
+        {typeid(int16_t).name(), "short"},
+        {typeid(uint64_t).name(), "unsigned long long"},
+        {typeid(uint32_t).name(), "unsigned int"},
+        {typeid(uint16_t).name(), "unsigned short"},
+        {typeid(uint8_t).name(), "unsigned char"},
+
         {typeid(double).name(), "double"},
+        {typeid(float).name(), "float"},
+        {typeid(long double).name(), "long double"},
+
+        {typeid(std::string).name(), "string"},
+        {typeid(char).name(), "char"},
+        
+        {typeid(bool).name(), ""},
     };
 }
 
