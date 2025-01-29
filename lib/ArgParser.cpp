@@ -90,6 +90,10 @@ bool ArgParser::Parse(const std::vector<std::string_view>& argv) {
     for (size_t position = 1; position < argv.size(); ++position) {
         std::string_view argument = argv[position];
 
+        if (argument.empty()) {
+            continue;
+        }
+
         if (argument == "--") {
             unused_positions.reserve(argv.size() - position - 1);
 
