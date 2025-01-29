@@ -1,9 +1,9 @@
 cmake_minimum_required(VERSION 3.12)
 
 project(
-    labwork4
+    nd_argparser
     VERSION 1.0
-    DESCRIPTION "C++ Year 2024 labword4"
+    DESCRIPTION "Simple C++ command line argument parser"
     LANGUAGES CXX
 )
 
