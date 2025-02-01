@@ -17,7 +17,7 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    std::cout << parser.GetValue<int32_t>("number") << std::endl;
+    std::cout << *parser.GetValue<int32_t>("number") << std::endl;
     return 0;
 }
 ```
