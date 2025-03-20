@@ -1,5 +1,5 @@
 # ArgParser <!-- omit in toc -->
-The ArgParser supports the POSIX program argument syntax [convention](https://www.gnu.org/software/libc/manual/html_node/Argument-Syntax.html).
+Flexible tool for working with command line arguments. Follows the POSIX program argument syntax [convention](https://www.gnu.org/software/libc/manual/html_node/Argument-Syntax.html).
 
 Using the parser is that simple:
 ```cpp
@@ -143,7 +143,7 @@ std::string film2 = *parser.GetValue<std::string>("film", 1); // Casablanca
 Note that GetValue returns a std::optional, so you should check the value every time you use it. Alternatively, you can check the return value of Parse - if it's true, all values are set, and "direct" use of GetValue is safe.
 
 ## Error handling
-Of course, users of your program may make mistakes when specifying the necessary arguments. To deal with them and produce a nice message rather than crashing the whole program, ArgParser provides you with several tools.
+Of course, users of your program may make mistakes when specifying the necessary arguments. To deal with them and give the user a nice message, use the methods below.
 
 ### What is a successful parse?
 `Parse()` returns a bool value indicating the success or failure of the parsing. The success means:
